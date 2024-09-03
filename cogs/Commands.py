@@ -13,7 +13,11 @@ class Commands(Plugin):
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
 
+    ###############################
+    ####### POINTS COMMAND ########
+    ###############################
     @app_commands.guild_only()
+    @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
     @app_commands.command(name="points", description="View your points.")
     async def points_command(self, interaction: discord.Interaction,
         user: discord.User | None
@@ -56,7 +60,17 @@ class Commands(Plugin):
             interaction
         )
 
+    @points_command.error
+    async def points_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            seconds = error.retry_after
+            await interaction.response.send_message(f"Command on cooldown!. You can use the command again after {int(seconds)} seconds.", ephemeral=True)
+
+    ###############################
+    #### WAITLIST RANK COMMAND ####
+    ###############################
     @app_commands.guild_only()
+    @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
     @app_commands.command(name="waitlist-rank", description="View your current waitlist rank.")
     async def waitlist_rank_command(self, interaction: discord.Interaction,
         user: discord.User | None
@@ -93,7 +107,17 @@ class Commands(Plugin):
             interaction
         )
 
+    @waitlist_rank_command.error
+    async def waitlist_rank_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            seconds = error.retry_after
+            await interaction.response.send_message(f"Command on cooldown!. You can use the command again after {int(seconds)} seconds.", ephemeral=True)
+
+    ###############################
+    ##### LEADERBOARD COMMAND #####
+    ###############################
     @app_commands.guild_only()
+    @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
     @app_commands.command(name="leaderboard", description="Top 10 users based on points or waitlist rank.")
     async def leaderboard_command(self, interaction: discord.Interaction,
         type: Literal["points", "waitlist"]
@@ -132,7 +156,16 @@ class Commands(Plugin):
         embed.credits()
 
         await interaction.followup.send(embed=embed)
-        
+
+    @leaderboard_command.error
+    async def leaderboard_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            seconds = error.retry_after
+            await interaction.response.send_message(f"Command on cooldown!. You can use the command again after {int(seconds)} seconds.", ephemeral=True)
+
+async def setup(bot: Bot):
+    await bot.add_cog(Commands(bot))
+      
 async def setup(bot: Bot):
     await bot.add_cog(Commands(bot))
 
