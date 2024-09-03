@@ -18,7 +18,6 @@ bot = Bot()
 
 # !sync id_1 id_2 -> syncs guilds with id 1 and 2
 @bot.command()
-@commands.is_owner()
 async def sync(
     ctx: commands.Context, guilds: commands.Greedy[discord.Object], spec: typing.Optional[typing.Literal["~", "*", "^"]] = None
     ) -> None:
