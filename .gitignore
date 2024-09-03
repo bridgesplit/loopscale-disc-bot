@@ -1,0 +1,9 @@
+myenv
+.env
+.venv
+venv
+
+__pycache__
+core/__pycache__
+cogs/__pycache__
+
