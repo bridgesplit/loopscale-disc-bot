@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 
 import discord
 from discord import app_commands
@@ -18,7 +19,6 @@ class Commands(Plugin):
     async def points_command(self, interaction: discord.Interaction,
         user: discord.User | None
     ):  
-        
         # Check if the user parameter is provided and if the user has 'Manage Server' permission
         if user and not interaction.user.guild_permissions.manage_guild:
             await interaction.response.send_message(
@@ -30,39 +30,42 @@ class Commands(Plugin):
         await interaction.response.defer(thinking=True, ephemeral=False)
         target = user or interaction.user
 
-        user_points = await _get_user_points(target.id, target.name)
-        if not user_points:
-            await self.bot.error(
-                f"Unable to fetch your points. Please connect your discord to the platform first.", 
+        try:
+            user_points = await asyncio.wait_for(_get_user_points(target.id, target.name), timeout=3.0)
+
+            if user_points == 'RATE_LIMITED':
+                await interaction.followup.send("Rate limit exceeded. Please try again in a few seconds.")
+                return
+
+            if not user_points:
+                await self.bot.error(
+                    f"Unable to fetch your points. Please connect your discord to the platform first.", 
+                    interaction
+                )
+                return
+
+            try:
+                await assign_roles_based_on_points(interaction, target, user_points)
+            except Exception as e:
+                # Log the error for debugging purposes
+                print(f"Error assigning roles: {str(e)}")
+                # Optionally notify the user
+                # await self.bot.error("There was an issue assigning roles. Please check with an administrator.", interaction)
+
+            prefix = "Your" if not user else f"{user}'s"
+            await self.bot.success(
+                f"{prefix} total points are `{user_points}`",
                 interaction
             )
-            return
-        
-        try:
-            # check if points greater than the points_threshold
-            await assign_roles_based_on_points(interaction, target, user_points)
-        except:
-            # this should only happen:
-            # - if the user already has the role, 
-            # - or the bot role is below the role to give in the discord server's role heirarchy, 
-            # - or if the bot doesn't have the permission to give the role.
-            # So, if the user doesn't get the role please check the role heirarchy and bot permissions
-            # if you notify the user if the role add fail here, if you want.
-            pass
-            
-        prefix = "Your" if not user else f"{user}'s"
-        await self.bot.success(
-            f"{prefix} total points are `{user_points}`",
-            interaction
-        )
+
+        except Exception as e:
+            await interaction.followup.send(
+                f"An unexpected error occurred: {str(e)}"
+            )
 
     @app_commands.guild_only()
     @app_commands.command(name="waitlist-rank", description="View your current waitlist rank.")
-    async def waitlist_rank_command(self, interaction: discord.Interaction,
-        user: discord.User | None
-    ):  
-        
-        # Check if the user parameter is provided and if the user has 'Manage Server' permission
+    async def waitlist_rank_command(self, interaction: discord.Interaction, user: discord.User | None):  
         if user and not interaction.user.guild_permissions.manage_guild:
             await interaction.response.send_message(
                 f"You don't have permission to view another user's waitlist rank. Use the `/{interaction.command.name}` command without the user parameter to view your waitlist rank.", 
@@ -73,65 +76,82 @@ class Commands(Plugin):
         await interaction.response.defer(thinking=True, ephemeral=False)
         target = user or interaction.user
 
-        user_rank = await _get_user_waitlist_position(target.id, target.name)
+        try:
+            user_rank = await _get_user_waitlist_position(target.id, target.name)
 
-        if not user_rank:
-            await self.bot.error(
-                f"Unable to fetch your waitlist rank. Please connect your discord to the platform first.", 
-                interaction
-            )
-            return
-        
-        if user_rank.get('userRank') == None:
-            message = "🥳 ➰  User is already off the waitlist!"
-            await assign_role(interaction, target, CLAIM_ROLE_BETA_LOOPER)
-        else:
-            message = f"User's waitlist rank is `{user_rank.get('userRank')}`"
+            if user_rank == 'RATE_LIMITED':
+                await interaction.followup.send("Rate limit exceeded. Please try again in a few seconds.")
+                return
 
-        await self.bot.success(
-            message,
-            interaction
-        )
-
-    @app_commands.guild_only()
-    @app_commands.command(name="leaderboard", description="Top 10 users based on points or waitlist rank.")
-    async def leaderboard_command(self, interaction: discord.Interaction,
-        type: Literal["points", "waitlist"]
-    ):         
-        await interaction.response.defer(thinking=True, ephemeral=False)
-        
-        leaderboard_raw_data = await _top_10_leaderboard(type)
-        if not leaderboard_raw_data:
-            await self.bot.error(
-                f"Unable to fetch top 10 leaderboard.", 
-                interaction
-            )
-            return
-    
-        user_list = []
-        for index, user in enumerate(leaderboard_raw_data, start=1):
-            if type == "points":
-                user_info_to_display = f"`{user.get('totalPoints')}`"
-            else:
-                user_info_to_display = f"`Rank-{user.get('waitlistRank')}`"
+            if not user_rank:
+                await interaction.followup.send(
+                    f"Unable to fetch your waitlist rank. Please connect your discord to the platform first."
+                )
+                return
             
-            symbol, user_name = get_user_name(user)
-                
-            if index == 1:
-                user_list.append(f"> 🥇 - {symbol} - **{user_name}**: {user_info_to_display}")
-            elif index == 2:
-                user_list.append(f"> 🥈 - {symbol} - **{user_name}**: {user_info_to_display}")
-            elif index == 3:
-                user_list.append(f"> 🥉 - {symbol} - **{user_name}**: {user_info_to_display}\n")
+            if user_rank.get('userRank') == None:
+                message = "🥳 ➰  User is already off the waitlist!"
+                try:
+                    await assign_role(interaction, target, CLAIM_ROLE_BETA_LOOPER)
+                except Exception as e:
+                    print(f"Error assigning role: {str(e)}")
             else:
-                user_list.append(f"`{index}` - {symbol} - **{user_name}**: {user_info_to_display}")
+                message = f"User's waitlist rank is `{user_rank.get('userRank')}`"
 
-        embed_user_list = '\n'.join(user_list)
+            await interaction.followup.send(message)
+
+        except Exception as e:
+            await interaction.followup.send(
+                f"An unexpected error occurred: {str(e)}"
+            )
+
+        @app_commands.guild_only()
+        @app_commands.command(name="leaderboard", description="Top 10 users based on points or waitlist rank.")
+        async def leaderboard_command(self, interaction: discord.Interaction, type: Literal["points", "waitlist"]):
+            await interaction.response.defer(thinking=True, ephemeral=False)
         
-        embed = Embed(title=f"🏆 Server Leaderboard - {type}", description=f"This leaderboard displays the Top 10 members by {type}.\n\n{embed_user_list}")
-        embed.credits()
+            try:
+                leaderboard_raw_data = await _top_10_leaderboard(type)
 
-        await interaction.followup.send(embed=embed)
+                if leaderboard_raw_data == 'RATE_LIMITED':
+                    await interaction.followup.send("Rate limit exceeded. Please try again in a few seconds.")
+                    return
+
+                if not leaderboard_raw_data:
+                    await interaction.followup.send(
+                        f"Unable to fetch top 10 leaderboard."
+                    )
+                    return
+            
+                user_list = []
+                for index, user in enumerate(leaderboard_raw_data, start=1):
+                    if type == "points":
+                        user_info_to_display = f"`{user.get('totalPoints')}`"
+                    else:
+                        user_info_to_display = f"`Rank-{user.get('waitlistRank')}`"
+                    
+                    symbol, user_name = get_user_name(user)
+                        
+                    if index == 1:
+                        user_list.append(f"> 🥇 - {symbol} - **{user_name}**: {user_info_to_display}")
+                    elif index == 2:
+                        user_list.append(f"> 🥈 - {symbol} - **{user_name}**: {user_info_to_display}")
+                    elif index == 3:
+                        user_list.append(f"> 🥉 - {symbol} - **{user_name}**: {user_info_to_display}\n")
+                    else:
+                        user_list.append(f"`{index}` - {symbol} - **{user_name}**: {user_info_to_display}")
+
+                embed_user_list = '\n'.join(user_list)
+                
+                embed = Embed(title=f"🏆 Server Leaderboard - {type}", description=f"This leaderboard displays the Top 10 members by {type}.\n\n{embed_user_list}")
+                embed.credits()
+
+                await interaction.followup.send(embed=embed)
+
+            except Exception as e:
+                await interaction.followup.send(
+                    f"An unexpected error occurred: {str(e)}"
+                )
         
 async def setup(bot: Bot):
     await bot.add_cog(Commands(bot))
