@@ -7,7 +7,7 @@ from core.util import get_user_name
 from . import Plugin
 from typing import Literal
 from core.api import _get_user_points, _get_user_waitlist_position, _top_10_leaderboard
-from settings_file import POINTS_THRESHOLD, CLAIM_ROLE_ID
+from settings_file import POINTS_THRESHOLD_WAITLIST, CLAIM_ROLE_WAITLIST, POINTS_THRESHOLD_SUPER_LOOPER, CLAIM_ROLE_SUPER_LOOPER, CLAIM_ROLE_BETA_LOOPER
 
 class Commands(Plugin):
     def __init__(self, bot: Bot) -> None:
@@ -40,10 +40,7 @@ class Commands(Plugin):
         
         try:
             # check if points greater than the points_threshold
-            if user_points > POINTS_THRESHOLD:
-                # give user role
-                role_to_give = interaction.guild.get_role(CLAIM_ROLE_ID)
-                await target.add_roles(role_to_give)
+            await assign_roles_based_on_points(interaction, target, user_points)
         except:
             # this should only happen:
             # - if the user already has the role, 
@@ -76,7 +73,7 @@ class Commands(Plugin):
         await interaction.response.defer(thinking=True, ephemeral=False)
         target = user or interaction.user
 
-        user_rank= await _get_user_waitlist_position(target.id, target.name)
+        user_rank = await _get_user_waitlist_position(target.id, target.name)
 
         if not user_rank:
             await self.bot.error(
@@ -85,10 +82,11 @@ class Commands(Plugin):
             )
             return
         
-        if user_rank.get('userRank') == 0:
-            message = "🥳 ➰  User is already off the waitlist! "
+        if user_rank.get('userRank') == None:
+            message = "🥳 ➰  User is already off the waitlist!"
+            await assign_role(interaction, target, CLAIM_ROLE_BETA_LOOPER)
         else:
-            message = f"User's waitlist rank is `{user_rank}`"
+            message = f"User's waitlist rank is `{user_rank.get('userRank')}`"
 
         await self.bot.success(
             message,
@@ -137,3 +135,22 @@ class Commands(Plugin):
         
 async def setup(bot: Bot):
     await bot.add_cog(Commands(bot))
+
+async def assign_role(interaction, target, role_id: int):
+    try:
+        role = interaction.guild.get_role(role_id)
+        if role is not None:
+            await target.add_roles(role)
+    except Exception:
+        # Role assignment failed, but we're not logging or notifying
+        pass
+
+async def assign_roles_based_on_points(interaction, target, user_points: int):
+    role_thresholds = [
+        (POINTS_THRESHOLD_WAITLIST, CLAIM_ROLE_WAITLIST),
+        (POINTS_THRESHOLD_SUPER_LOOPER, CLAIM_ROLE_SUPER_LOOPER)
+    ]
+
+    for threshold, role_id in role_thresholds:
+        if user_points > threshold:
+            await assign_role(interaction, target, role_id)
