@@ -8,12 +8,21 @@ from discord.ext import commands
 from asyncio import run
 from discord import utils
 from dotenv import load_dotenv
+from enum import Enum
 
 # Load the .env file
 load_dotenv()
 
+class Env(Enum):
+    STAGING = 'staging'
+    PROD = 'prod'
+
+# Change this to switch environments
+# Use Loopscale (blue icon) for prod, and Loopscale Bot Tester (PicoSol photo) for testing
+CURRENT_ENV = Env.STAGING
+
 # Access the variable
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+BOT_TOKEN = os.getenv('BOT_TOKEN') if CURRENT_ENV == Env.PROD else os.getenv('BOT_STAGING_TOKEN')
 bot = Bot()
 
 # !sync id_1 id_2 -> syncs guilds with id 1 and 2
