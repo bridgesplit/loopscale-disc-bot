@@ -85,9 +85,9 @@ class Commands(Plugin):
         target = user
 
         if points > 100 and not interaction.user.guild_permissions.manage_guild:
-            await interaction.response.send_message(
+            await  self.bot.error(
                 f"You are unable to assign more than 100 points at a time.", 
-                ephemeral=True
+                interaction
             )
             return
 
