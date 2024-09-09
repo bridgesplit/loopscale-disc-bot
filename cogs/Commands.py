@@ -6,7 +6,7 @@ from core import Bot, Embed
 from core.util import get_user_name
 from . import Plugin
 from typing import Literal
-from core.api import _get_user_points, _get_user_waitlist_position, _top_10_leaderboard
+from core.api import _get_user_points, _get_user_waitlist_position, _top_10_leaderboard, _mutate_user_points
 from settings_file import POINTS_THRESHOLD_WAITLIST, CLAIM_ROLE_WAITLIST, POINTS_THRESHOLD_SUPER_LOOPER, CLAIM_ROLE_SUPER_LOOPER, CLAIM_ROLE_BETA_LOOPER
 
 class Commands(Plugin):
@@ -23,8 +23,8 @@ class Commands(Plugin):
         user: discord.User | None
     ):  
         
-        # Check if the user parameter is provided and if the user has 'Manage Server' permission
-        if user and not interaction.user.guild_permissions.manage_guild:
+        # Check if the user parameter is provided and if the user has 'Manage Messages' permission
+        if user and not interaction.user.guild_permissions.manage_messages:
             await interaction.response.send_message(
                 f"You don't have permission to view another user's points. Use the `/{interaction.command.name}` command without the user parameter to view your points.", 
                 ephemeral=True
@@ -35,6 +35,7 @@ class Commands(Plugin):
         target = user or interaction.user
 
         user_points = await _get_user_points(target.id, target.name)
+      
         if not user_points:
             await self.bot.error(
                 f"Unable to fetch your points. Please connect your discord to the platform first.", 
@@ -56,12 +57,56 @@ class Commands(Plugin):
             
         prefix = "Your" if not user else f"{user}'s"
         await self.bot.success(
-            f"{prefix} total points are `{user_points}`",
+            f"{prefix} total points are `{user_points}` WAGMBO",
             interaction
         )
 
     @points_command.error
     async def points_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            seconds = error.retry_after
+            await interaction.response.send_message(f"Command on cooldown!. You can use the command again after {int(seconds)} seconds.", ephemeral=True)
+
+    ###############################
+    ## POINTS AWARD RANK COMMAND ##
+    ###############################
+    @app_commands.guild_only()
+    @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
+    @app_commands.command(name="award", description="Award points.")
+    async def award_points_command(self, interaction: discord.Interaction, user: discord.User, points: int):
+        if not interaction.user.guild_permissions.manage_messages:
+            await interaction.response.send_message(
+                f"You don't have permission to use this`/{interaction.command.name}` command.", 
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer(thinking=True, ephemeral=False)
+        target = user
+
+        if points > 100 and not interaction.user.guild_permissions.manage_guild:
+            await interaction.response.send_message(
+                f"You are unable to assign more than 100 points at a time.", 
+                ephemeral=True
+            )
+            return
+
+        user_mutate_result = await _mutate_user_points(target.id, points)
+        if not user_mutate_result:
+            await self.bot.error(
+                f"<@{target.id}> a team member just tried to award you points, but you haven't connected your Discord to the app yet.", 
+                interaction
+            )
+            return
+        
+        await self.bot.success(
+            f"🎉🎉 <@{target.id}> has been awarded {points} points 🎉🎉",
+            interaction
+        )
+        return
+
+    @award_points_command.error
+    async def award_points_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.CommandOnCooldown):
             seconds = error.retry_after
             await interaction.response.send_message(f"Command on cooldown!. You can use the command again after {int(seconds)} seconds.", ephemeral=True)
@@ -77,7 +122,7 @@ class Commands(Plugin):
     ):  
         
         # Check if the user parameter is provided and if the user has 'Manage Server' permission
-        if user and not interaction.user.guild_permissions.manage_guild:
+        if user and not interaction.user.guild_permissions.manage_messages:
             await interaction.response.send_message(
                 f"You don't have permission to view another user's waitlist rank. Use the `/{interaction.command.name}` command without the user parameter to view your waitlist rank.", 
                 ephemeral=True
