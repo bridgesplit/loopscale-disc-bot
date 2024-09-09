@@ -57,7 +57,7 @@ class Commands(Plugin):
             
         prefix = "Your" if not user else f"{user}'s"
         await self.bot.success(
-            f"{prefix} total points are `{user_points}` WAGMBO",
+            f"{prefix} total points are `{user_points}`",
             interaction
         )
 
