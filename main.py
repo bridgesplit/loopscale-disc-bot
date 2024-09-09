@@ -19,7 +19,7 @@ class Env(Enum):
 
 # Change this to switch environments
 # Use Loopscale (blue icon) for prod, and Loopscale Bot Tester (PicoSol photo) for testing
-CURRENT_ENV = Env.STAGING
+CURRENT_ENV = Env.PROD
 
 # Access the variable
 BOT_TOKEN = os.getenv('BOT_TOKEN') if CURRENT_ENV == Env.PROD else os.getenv('BOT_STAGING_TOKEN')
