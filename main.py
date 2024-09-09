@@ -21,8 +21,8 @@ class Env(Enum):
 # Use Loopscale (blue icon) for prod, and Loopscale Bot Tester (PicoSol photo) for testing
 CURRENT_ENV = Env.PROD
 
-# Access the variable
-BOT_TOKEN = os.getenv('BOT_TOKEN') if CURRENT_ENV == Env.PROD else os.getenv('BOT_STAGING_TOKEN')
+# Access the variable, replace with 'BOT_STAGING_TOKEN' if want to do staging bot.
+BOT_TOKEN = os.getenv('LOOPSCALE_BOT_MAIN_TOKEN')
 bot = Bot()
 
 # !sync id_1 id_2 -> syncs guilds with id 1 and 2

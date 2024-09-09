@@ -92,7 +92,6 @@ class Commands(Plugin):
             return
 
         user_mutate_result = await _mutate_user_points(target.id, points)
-        print(user_mutate_result, target.id, points, ' --- after _mutate_user_points request')
         if not user_mutate_result:
             await self.bot.error(
                 f"<@{target.id}> a team member just tried to award you points, but you haven't connected your Discord to the app yet.", 

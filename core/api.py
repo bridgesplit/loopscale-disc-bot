@@ -65,13 +65,11 @@ async def _mutate_user_points(discord_user_id: str, points: int):
         "discordId": str(discord_user_id),
     }
     
-    print(url, headers, payload, "internal _mutate_user_points")
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=payload) as response:
             if response.status == 200:
                 return True
             else:
-                print(response, "internal response")
                 return False
             
 async def _top_10_leaderboard(type: str):
