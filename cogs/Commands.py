@@ -23,8 +23,8 @@ class Commands(Plugin):
         user: discord.User | None
     ):  
         
-        # Check if the user parameter is provided and if the user has 'Manage Server' permission
-        if user and not interaction.user.guild_permissions.manage_guild:
+        # Check if the user parameter is provided and if the user has 'Manage Messages' permission
+        if user and not interaction.user.guild_permissions.manage_messages:
             await interaction.response.send_message(
                 f"You don't have permission to view another user's points. Use the `/{interaction.command.name}` command without the user parameter to view your points.", 
                 ephemeral=True
@@ -74,7 +74,7 @@ class Commands(Plugin):
     @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
     @app_commands.command(name="award", description="Award points.")
     async def award_points_command(self, interaction: discord.Interaction, user: discord.User, points: int):
-        if not interaction.user.guild_permissions.manage_roles:
+        if not interaction.user.guild_permissions.manage_messages:
             await interaction.response.send_message(
                 f"You don't have permission to use this`/{interaction.command.name}` command.", 
                 ephemeral=True
@@ -84,7 +84,7 @@ class Commands(Plugin):
         await interaction.response.defer(thinking=True, ephemeral=False)
         target = user
 
-        if points > 100 and not interaction.user.guild_permissions.administrator:
+        if points > 100 and not interaction.user.guild_permissions.manage_guild:
             await interaction.response.send_message(
                 f"You are unable to assign more than 100 points at a time.", 
                 ephemeral=True
@@ -122,7 +122,7 @@ class Commands(Plugin):
     ):  
         
         # Check if the user parameter is provided and if the user has 'Manage Server' permission
-        if user and not interaction.user.guild_permissions.manage_guild:
+        if user and not interaction.user.guild_permissions.manage_messages:
             await interaction.response.send_message(
                 f"You don't have permission to view another user's waitlist rank. Use the `/{interaction.command.name}` command without the user parameter to view your waitlist rank.", 
                 ephemeral=True
