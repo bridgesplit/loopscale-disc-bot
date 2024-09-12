@@ -84,10 +84,17 @@ class Commands(Plugin):
         await interaction.response.defer(thinking=True, ephemeral=False)
         target = user
 
-        if points > 100 and not interaction.user.guild_permissions.manage_guild:
-            await interaction.response.send_message(
-                f"You are unable to assign more than 100 points at a time.", 
-                ephemeral=True
+        if points > 500 and not interaction.user.guild_permissions.manage_guild:
+            await self.bot.error(
+                f"You are unable to assign more than 500 points at a time.",
+                interaction
+            )
+            return
+        
+        if points < 1:
+            await self.bot.error(
+                f"You are unable to assign negative points. 🤡",
+                interaction
             )
             return
 
